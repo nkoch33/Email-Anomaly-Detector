@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Page</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="login-container">
+        <h1>Login</h1>
+        
+        <!-- Connection status indicator -->
+        <div id="connectionStatus" class="connection-status" style="
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+        ">
+            Testing connection...
+        </div>
+        
+        <form action="#" method="post">
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            
+            <button type="submit" class="login-btn">Login</button>
+        </form>
+        
+        <div class="forgot-password">
+            <a href="#">Forgot Password?</a>
+        </div>
+        
+        <div class="back-link">
+            <a href="index.html">← Back to Home</a>
+        </div>
+    </div>
+
+    
+<script>
+// Secure API class for making authenticated requests
+class SecureAPI {
+    static baseURL = 'http://localhost:8080/api';
+    
+    static async makeRequest(endpoint, options = {}) {
+        const defaultOptions = {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include' // This includes cookies!
+        };
+        
+        const mergedOptions = { ...defaultOptions, ...options };
+        
+        try {
+            const response = await fetch(`${this.baseURL}${endpoint}`, mergedOptions);
+            
+            // Handle authentication errors
+            if (response.status === 401) {
+                alert('Session expired. Please login again.');
+                window.location.href = '/login.html';
+                return null;
+            }
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('API request failed:', error);
+            throw error;
+        }
+    }
+    
+    static async login(username, password) {
+        return await this.makeRequest('/login', {
+            method: 'POST',
+            body: JSON.stringify({ username, password })
+        });
+    }
+    
+    static async testConnection() {
+        return await this.makeRequest('/test-db');
+    }
+    
+    static async getProtectedData() {
+        return await this.makeRequest('/protected');
+    }
+    
+    static async logout() {
+        return await this.makeRequest('/logout', {
+            method: 'POST'
+        });
+    }
+}
+
+// Test backend connection and update UI
+async function testBackendConnection() {
+    try {
+        const data = await SecureAPI.testConnection();
+        console.log('Backend connection successful:', data);
+        document.getElementById('connectionStatus').textContent = 'Backend Connected ✓';
+    } catch (error) {
+        console.error('Backend connection failed:', error);
+        document.getElementById('connectionStatus').textContent = 'Backend Disconnected ✗';
+    }
+}
+
+// Handle login form submission
+document.addEventListener('DOMContentLoaded', function() {
+    // Test connection on page load
+    testBackendConnection();
+    
+    // Handle form submission
+    const loginForm = document.querySelector('form');
+    loginForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        
+        try {
+            const result = await SecureAPI.login(username, password);
+            
+            if (result && result.status === 'success') {
+                alert('Login successful!');
+                // Test protected endpoint to verify authentication
+                try {
+                    const protectedData = await SecureAPI.getProtectedData();
+                    console.log('Protected data:', protectedData);
+                    window.location.href = '/index.html';
+                } catch (error) {
+                    console.error('Failed to access protected data:', error);
+                }
+            } else {
+                alert('Login failed. Please check your credentials.');
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            alert('Login failed. Please try again.');
+        }
+    });
+});
+</script>
+</body>
+</html>

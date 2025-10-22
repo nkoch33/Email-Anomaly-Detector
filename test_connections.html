@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connection Test - Email Anomaly Detector</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .pending { background-color: #fff3cd; color: #856404; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background-color: #0056b3; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1> Secure Connection Test</h1>
+    <p>This page tests the secure connections between Frontend ↔ Backend ↔ Database</p>
+
+    <div class="test-section">
+        <h2>Test 1: Backend Connection</h2>
+        <button onclick="testBackendConnection()">Test Backend</button>
+        <div id="backendResult" class="test-result pending">Click button to test</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 2: Database Connection</h2>
+        <button onclick="testDatabaseConnection()">Test Database</button>
+        <div id="databaseResult" class="test-result pending">Click button to test</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 3: Authentication Flow</h2>
+        <button onclick="testAuthentication()">Test Login/Logout</button>
+        <div id="authResult" class="test-result pending">Click button to test</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 4: Protected Endpoint</h2>
+        <button onclick="testProtectedEndpoint()">Test Protected Data</button>
+        <div id="protectedResult" class="test-result pending">Click button to test</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 5: Complete Security Flow</h2>
+        <button onclick="runCompleteTest()">Run All Tests</button>
+        <div id="completeResult" class="test-result pending">Click button to run complete test</div>
+    </div>
+
+    <script>
+        class SecureAPI {
+            static baseURL = 'http://localhost:8080/api';
+            
+            static async makeRequest(endpoint, options = {}) {
+                const defaultOptions = {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include'
+                };
+                
+                const mergedOptions = { ...defaultOptions, ...options };
+                
+                try {
+                    const response = await fetch(`${this.baseURL}${endpoint}`, mergedOptions);
+                    
+                    if (response.status === 401) {
+                        return { error: 'Unauthorized', status: 401 };
+                    }
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    return await response.json();
+                } catch (error) {
+                    return { error: error.message };
+                }
+            }
+            
+            static async login(username, password) {
+                return await this.makeRequest('/login', {
+                    method: 'POST',
+                    body: JSON.stringify({ username, password })
+                });
+            }
+            
+            static async logout() {
+                return await this.makeRequest('/logout', {
+                    method: 'POST'
+                });
+            }
+            
+            static async testConnection() {
+                return await this.makeRequest('/test-db');
+            }
+            
+            static async getProtectedData() {
+                return await this.makeRequest('/protected');
+            }
+        }
+
+        async function testBackendConnection() {
+            const resultDiv = document.getElementById('backendResult');
+            resultDiv.textContent = 'Testing...';
+            resultDiv.className = 'test-result pending';
+            
+            try {
+                const response = await fetch('http://localhost:8080/');
+                if (response.ok) {
+                    const text = await response.text();
+                    resultDiv.innerHTML = `✅ Backend Connected<br><small>Response: ${text}</small>`;
+                    resultDiv.className = 'test-result success';
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `❌ Backend Failed<br><small>Error: ${error.message}</small>`;
+                resultDiv.className = 'test-result error';
+            }
+        }
+
+        async function testDatabaseConnection() {
+            const resultDiv = document.getElementById('databaseResult');
+            resultDiv.textContent = 'Testing...';
+            resultDiv.className = 'test-result pending';
+            
+            try {
+                const result = await SecureAPI.testConnection();
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+                
+                resultDiv.innerHTML = `✅ Database Connected<br><pre>${JSON.stringify(result, null, 2)}</pre>`;
+                resultDiv.className = 'test-result success';
+            } catch (error) {
+                resultDiv.innerHTML = `❌ Database Failed<br><small>Error: ${error.message}</small>`;
+                resultDiv.className = 'test-result error';
+            }
+        }
+
+        async function testAuthentication() {
+            const resultDiv = document.getElementById('authResult');
+            resultDiv.textContent = 'Testing...';
+            resultDiv.className = 'test-result pending';
+            
+            try {
+                // Test login
+                const loginResult = await SecureAPI.login('testuser', 'testpass');
+                if (loginResult.error) {
+                    throw new Error(`Login failed: ${loginResult.error}`);
+                }
+                
+                // Test logout
+                const logoutResult = await SecureAPI.logout();
+                if (logoutResult.error) {
+                    throw new Error(`Logout failed: ${logoutResult.error}`);
+                }
+                
+                resultDiv.innerHTML = `✅ Authentication Flow Working<br><pre>Login: ${JSON.stringify(loginResult, null, 2)}<br>Logout: ${JSON.stringify(logoutResult, null, 2)}</pre>`;
+                resultDiv.className = 'test-result success';
+            } catch (error) {
+                resultDiv.innerHTML = `❌ Authentication Failed<br><small>Error: ${error.message}</small>`;
+                resultDiv.className = 'test-result error';
+            }
+        }
+
+        async function testProtectedEndpoint() {
+            const resultDiv = document.getElementById('protectedResult');
+            resultDiv.textContent = 'Testing...';
+            resultDiv.className = 'test-result pending';
+            
+            try {
+                // First login
+                const loginResult = await SecureAPI.login('testuser', 'testpass');
+                if (loginResult.error) {
+                    throw new Error(`Login failed: ${loginResult.error}`);
+                }
+                
+                // Then try protected endpoint
+                const protectedResult = await SecureAPI.getProtectedData();
+                if (protectedResult.error) {
+                    throw new Error(`Protected endpoint failed: ${protectedResult.error}`);
+                }
+                
+                resultDiv.innerHTML = `✅ Protected Endpoint Working<br><pre>${JSON.stringify(protectedResult, null, 2)}</pre>`;
+                resultDiv.className = 'test-result success';
+            } catch (error) {
+                resultDiv.innerHTML = `❌ Protected Endpoint Failed<br><small>Error: ${error.message}</small>`;
+                resultDiv.className = 'test-result error';
+            }
+        }
+
+        async function runCompleteTest() {
+            const resultDiv = document.getElementById('completeResult');
+            resultDiv.textContent = 'Running complete test...';
+            resultDiv.className = 'test-result pending';
+            
+            let results = [];
+            
+            // Test 1: Backend
+            try {
+                const response = await fetch('http://localhost:8080/');
+                results.push(`✅ Backend: ${response.ok ? 'Connected' : 'Failed'}`);
+            } catch (error) {
+                results.push(`❌ Backend: ${error.message}`);
+            }
+            
+            // Test 2: Database
+            try {
+                const result = await SecureAPI.testConnection();
+                results.push(`✅ Database: ${result.error ? 'Failed' : 'Connected'}`);
+            } catch (error) {
+                results.push(`❌ Database: ${error.message}`);
+            }
+            
+            // Test 3: Authentication
+            try {
+                const loginResult = await SecureAPI.login('testuser', 'testpass');
+                const logoutResult = await SecureAPI.logout();
+                results.push(`✅ Authentication: Working`);
+            } catch (error) {
+                results.push(`❌ Authentication: ${error.message}`);
+            }
+            
+            // Test 4: Protected Endpoint
+            try {
+                await SecureAPI.login('testuser', 'testpass');
+                const protectedResult = await SecureAPI.getProtectedData();
+                results.push(`✅ Protected Endpoint: Working`);
+            } catch (error) {
+                results.push(`❌ Protected Endpoint: ${error.message}`);
+            }
+            
+            const successCount = results.filter(r => r.startsWith('✅')).length;
+            const totalTests = results.length;
+            
+            resultDiv.innerHTML = `
+                <strong>Complete Test Results (${successCount}/${totalTests} passed):</strong><br>
+                ${results.join('<br>')}
+            `;
+            
+            if (successCount === totalTests) {
+                resultDiv.className = 'test-result success';
+            } else {
+                resultDiv.className = 'test-result error';
+            }
+        }
+
+        // Auto-run backend test on page load
+        window.onload = function() {
+            testBackendConnection();
+        };
+    </script>
+</body>
+</html>

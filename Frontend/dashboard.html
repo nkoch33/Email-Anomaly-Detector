@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Email Anomaly Detector</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Email Anomaly Detector Dashboard</h1>
+        
+        <div class="dashboard-section">
+            <h2>Welcome to your secure dashboard!</h2>
+            <p>This page is protected and requires authentication.</p>
+            
+            <div class="auth-info">
+                <h3>Authentication Status</h3>
+                <div id="authStatus">Checking authentication...</div>
+                <div id="userInfo"></div>
+            </div>
+            
+            <div class="actions">
+                <button onclick="testProtectedEndpoint()" class="btn">Test Protected Endpoint</button>
+                <button onclick="logout()" class="btn btn-danger">Logout</button>
+            </div>
+            
+            <div id="protectedData" class="protected-data" style="display: none;">
+                <h3>Protected Data Response:</h3>
+                <pre id="protectedResponse"></pre>
+            </div>
+        </div>
+        
+        <div class="nav-links">
+            <a href="index.html">← Back to Home</a>
+        </div>
+    </div>
+
+    <script>
+        // Use the same SecureAPI class from login.html
+        class SecureAPI {
+            static baseURL = 'http://localhost:8080/api';
+            
+            static async makeRequest(endpoint, options = {}) {
+                const defaultOptions = {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include'
+                };
+                
+                const mergedOptions = { ...defaultOptions, ...options };
+                
+                try {
+                    const response = await fetch(`${this.baseURL}${endpoint}`, mergedOptions);
+                    
+                    if (response.status === 401) {
+                        alert('Session expired. Redirecting to login...');
+                        window.location.href = '/login.html';
+                        return null;
+                    }
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    return await response.json();
+                } catch (error) {
+                    console.error('API request failed:', error);
+                    throw error;
+                }
+            }
+            
+            static async getProtectedData() {
+                return await this.makeRequest('/protected');
+            }
+            
+            static async logout() {
+                return await this.makeRequest('/logout', {
+                    method: 'POST'
+                });
+            }
+        }
+
+        // Test protected endpoint
+        async function testProtectedEndpoint() {
+            try {
+                const data = await SecureAPI.getProtectedData();
+                document.getElementById('protectedData').style.display = 'block';
+                document.getElementById('protectedResponse').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                console.error('Failed to get protected data:', error);
+                alert('Failed to access protected data. Check console for details.');
+            }
+        }
+
+        // Logout function
+        async function logout() {
+            try {
+                await SecureAPI.logout();
+                alert('Logged out successfully!');
+                window.location.href = '/login.html';
+            } catch (error) {
+                console.error('Logout failed:', error);
+                alert('Logout failed. Check console for details.');
+            }
+        }
+
+        // Check authentication status on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                const data = await SecureAPI.getProtectedData();
+                document.getElementById('authStatus').textContent = '✅ Authenticated';
+                document.getElementById('authStatus').style.color = 'green';
+                
+                if (data.user_id) {
+                    document.getElementById('userInfo').textContent = `User ID: ${data.user_id}`;
+                }
+            } catch (error) {
+                document.getElementById('authStatus').textContent = '❌ Not Authenticated';
+                document.getElementById('authStatus').style.color = 'red';
+                console.error('Authentication check failed:', error);
+            }
+        });
+    </script>
+</body>
+</html>
